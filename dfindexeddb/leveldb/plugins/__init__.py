@@ -15,3 +15,4 @@
 """Leveldb Plugin module."""
 
 from dfindexeddb.leveldb.plugins import chrome_notifications
+from dfindexeddb.leveldb.plugins import chrome_sync
