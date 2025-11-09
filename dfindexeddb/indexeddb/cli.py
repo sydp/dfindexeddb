@@ -23,7 +23,7 @@ from typing import Any
 
 from dfindexeddb import utils, version
 from dfindexeddb.indexeddb import types
-from dfindexeddb.indexeddb.chromium import blink
+from dfindexeddb.indexeddb.chromium import blink, leveldb
 from dfindexeddb.indexeddb.chromium import record as chromium_record
 from dfindexeddb.indexeddb.firefox import gecko
 from dfindexeddb.indexeddb.firefox import record as firefox_record
@@ -109,6 +109,13 @@ def DbCommand(args: argparse.Namespace) -> None:
   elif args.format == "safari":
     for safari_db_record in safari_record.FileReader(args.source).Records():
       _Output(safari_db_record, output=args.output)
+
+
+def LevelDBCommand(args: argparse.Namespace) -> None:
+  """The CLI for processing a LevelDB folder as IndexedDB."""
+  leveldb_reader = leveldb.IndexedDatabase(args.source)
+  for db_record in leveldb_reader.GetRecords():
+    _Output(db_record, output=args.output)
 
 
 def LdbCommand(args: argparse.Namespace) -> None:
@@ -250,6 +257,25 @@ def App() -> None:
       help="Output format.  Default is json.",
   )
   parser_log.set_defaults(func=LogCommand)
+
+  leveldb_log = subparsers.add_parser(
+      "leveldb", help="Parse a folder as Chrome/Chromium IndexedDB."
+  )
+  leveldb_log.add_argument(
+      "-s",
+      "--source",
+      required=True,
+      type=pathlib.Path,
+      help="The source .log file.",
+  )
+  leveldb_log.add_argument(
+      "-o",
+      "--output",
+      choices=["json", "jsonl", "repr"],
+      default="json",
+      help="Output format.  Default is json.",
+  )
+  leveldb_log.set_defaults(func=LevelDBCommand)
 
   args: argparse.Namespace = parser.parse_args()
   if hasattr(args, "func"):
