@@ -15,21 +15,20 @@
 """Unit tests for LevelDB Table (.ldb) files."""
 import unittest
 
-from dfindexeddb.leveldb import definitions
-from dfindexeddb.leveldb import ldb
+from dfindexeddb.leveldb import definitions, ldb
 
 
 class LDBTest(unittest.TestCase):
   """Unit tests for the leveldb ldb parser."""
 
-  def test_init_ldb(self):
+  def test_init_ldb(self) -> None:
     """Tests initializing a Ldb FileReader."""
-    ldb_file = ldb.FileReader('./test_data/leveldb/100k keys/000005.ldb')
+    ldb_file = ldb.FileReader("./test_data/leveldb/100k keys/000005.ldb")
     self.assertIsNotNone(ldb_file)
 
-  def test_blocks(self):
+  def test_blocks(self) -> None:
     """Tests the blocks method."""
-    ldb_file = ldb.FileReader('./test_data/leveldb/100k keys/000005.ldb')
+    ldb_file = ldb.FileReader("./test_data/leveldb/100k keys/000005.ldb")
     blocks = list(ldb_file.GetBlocks())
     first_block = blocks[0]
 
@@ -38,28 +37,30 @@ class LDBTest(unittest.TestCase):
     self.assertEqual(first_block.length, 1721)
     self.assertTrue(first_block.IsSnappyCompressed())
 
-  def test_records(self):
+  def test_records(self) -> None:
     """Tests the records method."""
-    ldb_file = ldb.FileReader('./test_data/leveldb/100k keys/000005.ldb')
+    ldb_file = ldb.FileReader("./test_data/leveldb/100k keys/000005.ldb")
 
     records = list(ldb_file.GetKeyValueRecords())
     self.assertIsInstance(records[0], ldb.KeyValueRecord)
-    self.assertEqual(records[0].key, b'\x00\x00\x00\x00')
-    self.assertEqual(records[0].value, b'test value\x00\x00\x00\x00')
+    self.assertEqual(records[0].key, b"\x00\x00\x00\x00")
+    self.assertEqual(records[0].value, b"test value\x00\x00\x00\x00")
     self.assertEqual(records[0].sequence_number, 1)
     self.assertEqual(
-        records[0].record_type, definitions.InternalRecordType.VALUE)
+        records[0].record_type, definitions.InternalRecordType.VALUE
+    )
 
-  def test_range_iter(self):
+  def test_range_iter(self) -> None:
     """Tests the RangeIter method."""
-    ldb_file = ldb.FileReader('./test_data/leveldb/100k keys/000005.ldb')
+    ldb_file = ldb.FileReader("./test_data/leveldb/100k keys/000005.ldb")
 
     range_iter_records = list(ldb_file.RangeIter())
     self.assertIsInstance(range_iter_records[0], tuple)
     self.assertIsInstance(range_iter_records[0][0], bytes)
-    self.assertEqual(range_iter_records[0][0], b'\x00\x00\x00\x00')
+    self.assertEqual(range_iter_records[0][0], b"\x00\x00\x00\x00")
     self.assertIsInstance(range_iter_records[0][1], bytes)
-    self.assertEqual(range_iter_records[0][1], b'test value\x00\x00\x00\x00')
+    self.assertEqual(range_iter_records[0][1], b"test value\x00\x00\x00\x00")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
   unittest.main()

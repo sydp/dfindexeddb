@@ -15,9 +15,9 @@
 """Version information for dfIndexeddb."""
 
 
-__version__ = "20241105"
+__version__ = "20260210"
 
 
-def GetVersion():
+def GetVersion() -> str:
   """Returns the version information."""
   return __version__

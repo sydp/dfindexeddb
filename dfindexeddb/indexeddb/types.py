@@ -16,7 +16,7 @@
 from __future__ import annotations
 
 import dataclasses
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Protocol, Set, runtime_checkable
 
 
 @dataclasses.dataclass
@@ -30,6 +30,7 @@ class JSArray:
     values: the array values.
     properties: the array properties.
   """
+
   values: List[Any] = dataclasses.field(default_factory=list)
   properties: Dict[Any, Any] = dataclasses.field(default_factory=dict)
 
@@ -45,6 +46,7 @@ class JSSet:
     values: the set values.
     properties: the set properties.
   """
+
   values: Set[Any] = dataclasses.field(default_factory=set)
   properties: Dict[Any, Any] = dataclasses.field(default_factory=dict)
 
@@ -57,13 +59,45 @@ class Null:
 @dataclasses.dataclass
 class RegExp:
   """A parsed JavaScript RegExp.
-  
+
   Attributes:
     pattern: the pattern.
     flags: the flags.
   """
+
   pattern: str
   flags: str
+
+
+@runtime_checkable
+class FilterableRecord(Protocol):
+  """A protocol for filterable IndexedDB records."""
+
+  @property
+  def is_key_filterable(self) -> bool:
+    """True if the record key is filterable."""
+
+  @property
+  def is_value_filterable(self) -> bool:
+    """True if the record value is filterable."""
+
+  @property
+  def object_store_id(self) -> int:
+    """The object store ID."""
+
+  def MatchesKey(self, term: str) -> bool:
+    """Returns True if the record key matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+
+  def MatchesValue(self, term: str) -> bool:
+    """Returns True if the record value matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
 
 
 @dataclasses.dataclass

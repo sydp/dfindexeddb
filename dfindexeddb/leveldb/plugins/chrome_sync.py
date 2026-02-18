@@ -1,9 +1,9 @@
 """Parser plugin for Chrome Sync."""
+
 from __future__ import annotations
 
 import dataclasses
 import logging
-import sys
 from typing import Any, Optional
 
 from google.protobuf.json_format import MessageToDict
@@ -20,8 +20,8 @@ try:
 except ImportError as err:
   _has_import_dependencies = False
   logging.warning(
-      'Could not import dependencies for leveldb.plugins.chrome_sync: %s',
-      err)
+      "Could not import dependencies for leveldb.plugins.chrome_sync: %s", err
+  )
 
 from dfindexeddb.leveldb.plugins import interface
 from dfindexeddb.leveldb.plugins import manager
@@ -30,7 +30,8 @@ from dfindexeddb.leveldb.plugins import manager
 @dataclasses.dataclass
 class ChromeSyncRecord(interface.LeveldbPlugin):
   """Chrome Sync record."""
-  #src_file: Optional[str] = None
+
+  # src_file: Optional[str] = None
   offset: Optional[int] = None
   key: Optional[bytes] = None
   sequence_number: Optional[int] = None
@@ -39,7 +40,8 @@ class ChromeSyncRecord(interface.LeveldbPlugin):
 
   @classmethod
   def FromKeyValueRecord(
-      cls, ldb_record: KeyValueRecord | ParsedInternalKey) -> ChromeSyncRecord:
+      cls, ldb_record: KeyValueRecord | ParsedInternalKey
+  ) -> ChromeSyncRecord:
     """Creates a ChromeSyncRecord from a KeyValueRecord or ParsedInternalKey."""
     record = cls()
     record.offset = ldb_record.offset
@@ -47,17 +49,20 @@ class ChromeSyncRecord(interface.LeveldbPlugin):
     record.sequence_number = ldb_record.sequence_number
     record.type = ldb_record.record_type
 
-    sync_proto = sync_pb2.SyncEntity()
+    sync_proto = sync_pb2.SyncEntity()  # type: ignore[attr-defined]
     try:
       sync_proto.ParseFromString(ldb_record.value)
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
       logging.error(
-          'Failed to parse Chrome Sync record at offset %d: %s',
-          ldb_record.offset, e)
+          "Failed to parse Chrome Sync record at offset %d: %s",
+          ldb_record.offset,
+          e,
+      )
       return record
 
     record.value = MessageToDict(sync_proto)
     return record
+
 
 if _has_import_dependencies:
   manager.PluginManager.RegisterPlugin(ChromeSyncRecord)
