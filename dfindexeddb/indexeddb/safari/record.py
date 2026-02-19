@@ -60,6 +60,37 @@ class ObjectStoreInfo:
   auto_inc: bool
   database_name: str
 
+  @property
+  def is_key_filterable(self) -> bool:
+    """True if the record key is filterable."""
+    return False
+
+  @property
+  def is_value_filterable(self) -> bool:
+    """True if the record value is filterable."""
+    return True
+
+  @property
+  def object_store_id(self) -> int:
+    """The object store ID."""
+    return self.id
+
+  def MatchesKey(self, term: str) -> bool:
+    """Returns True if the record key matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return False
+
+  def MatchesValue(self, term: str) -> bool:
+    """Returns True if the record value matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return term in str(self.name)
+
 
 @dataclass
 class SafariIndexedDBRecord:

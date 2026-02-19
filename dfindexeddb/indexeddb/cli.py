@@ -24,11 +24,152 @@ from typing import Any
 from dfindexeddb import utils, version
 from dfindexeddb.indexeddb import types
 from dfindexeddb.indexeddb.chromium import blink
+from dfindexeddb.indexeddb.chromium import definitions as chromium_definitions
 from dfindexeddb.indexeddb.chromium import sqlite
 from dfindexeddb.indexeddb.chromium import record as chromium_record
 from dfindexeddb.indexeddb.firefox import gecko
 from dfindexeddb.indexeddb.firefox import record as firefox_record
 from dfindexeddb.indexeddb.safari import record as safari_record
+
+@dataclasses.dataclass
+class ChromiumDatabaseInfo:
+  """Chromium IndexedDB database info.
+
+  Attributes:
+    name: the database name.
+  """
+
+  name: str
+
+  @property
+  def is_key_filterable(self) -> bool:
+    """True if the record key is filterable."""
+    return False
+
+  @property
+  def is_value_filterable(self) -> bool:
+    """True if the record value is filterable."""
+    return True
+
+  @property
+  def object_store_id(self) -> int:
+    """The object store ID."""
+    return 0
+
+  def MatchesKey(self, term: str) -> bool:
+    """Returns True if the record key matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return False
+
+  def MatchesValue(self, term: str) -> bool:
+    """Returns True if the record value matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return term in str(self.name)
+
+
+@dataclasses.dataclass
+class FirefoxDatabaseInfo:
+  """Firefox IndexedDB database info.
+
+  Attributes:
+    name: the database name.
+    origin: the database origin.
+    version: the metadata version.
+    last_vacuum_time: the last vacuum time.
+    last_analyze_time: the last analyze time.
+  """
+
+  name: str
+  origin: str
+  version: int
+  last_vacuum_time: int
+  last_analyze_time: int
+
+  @property
+  def is_key_filterable(self) -> bool:
+    """True if the record key is filterable."""
+    return False
+
+  @property
+  def is_value_filterable(self) -> bool:
+    """True if the record value is filterable."""
+    return True
+
+  @property
+  def object_store_id(self) -> int:
+    """The object store ID."""
+    return 0
+
+  def MatchesKey(self, term: str) -> bool:
+    """Returns True if the record key matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return False
+
+  def MatchesValue(self, term: str) -> bool:
+    """Returns True if the record value matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return term in str(self.name)
+
+
+@dataclasses.dataclass
+class SafariDatabaseInfo:
+  """Safari IndexedDB database info.
+
+  Attributes:
+    name: the database name.
+    version: the database version.
+    metadata_version: the metadata version.
+    max_object_store_id: the maximum object store ID.
+  """
+
+  name: str
+  version: int
+  metadata_version: int
+  max_object_store_id: int
+
+  @property
+  def is_key_filterable(self) -> bool:
+    """True if the record key is filterable."""
+    return False
+
+  @property
+  def is_value_filterable(self) -> bool:
+    """True if the record value is filterable."""
+    return True
+
+  @property
+  def object_store_id(self) -> int:
+    """The object store ID."""
+    return 0
+
+  def MatchesKey(self, term: str) -> bool:
+    """Returns True if the record key matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return False
+
+  def MatchesValue(self, term: str) -> bool:
+    """Returns True if the record value matches the filter term.
+
+    Args:
+      term: the filter term.
+    """
+    return term in str(self.name)
+
 
 _VALID_PRINTABLE_CHARACTERS = (
     " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -113,6 +254,7 @@ def _MatchesFilters(
   """Returns True if the record matches the filter criteria.
 
   Supported filters:
+  * database_id - filters by database ID
   * object_store_id - filters by object store ID
   * filter_key - filters by key
   * filter_value - filters by value
@@ -125,11 +267,66 @@ def _MatchesFilters(
     True if the record matches the filter criteria or no filters are set, False
         otherwise.
   """
-  if (
-      args.object_store_id is not None
-      and record.object_store_id != args.object_store_id
-  ):
-    return False
+  list_databases = getattr(args, "list_databases", False)
+  list_object_stores = getattr(args, "list_object_stores", False)
+
+  if list_databases:
+    if isinstance(record, chromium_record.ChromiumIndexedDBRecord):
+      if not (
+          record.key.key_prefix.GetKeyPrefixType()
+          == chromium_definitions.KeyPrefixType.GLOBAL_METADATA
+          and isinstance(record.key, chromium_record.DatabaseNameKey)
+      ):
+        return False
+    elif not isinstance(
+        record, (ChromiumDatabaseInfo, FirefoxDatabaseInfo, SafariDatabaseInfo)
+    ):
+      return False
+
+  elif list_object_stores:
+    if isinstance(record, chromium_record.ChromiumIndexedDBRecord):
+      if not (
+          record.key.key_prefix.GetKeyPrefixType()
+          == chromium_definitions.KeyPrefixType.DATABASE_METADATA
+          and isinstance(record.key, chromium_record.ObjectStoreMetaDataKey)
+          and record.key.metadata_type
+          == chromium_definitions.ObjectStoreMetaDataKeyType.OBJECT_STORE_NAME
+      ):
+        return False
+    elif not isinstance(
+        record,
+        (
+            sqlite.ChromiumObjectStoreInfo,
+            firefox_record.FirefoxObjectStoreInfo,
+            safari_record.ObjectStoreInfo,
+        ),
+    ):
+      return False
+
+  if getattr(args, "database_id", None) is not None:
+    record_database_id = getattr(record, "database_id", None)
+    if record_database_id is not None:
+      if (
+          record_database_id == 0
+          and isinstance(record, chromium_record.ChromiumIndexedDBRecord)
+          and isinstance(record.key, chromium_record.DatabaseNameKey)
+      ):
+        record_database_id = record.value
+
+      if record_database_id != args.database_id:
+        return False
+
+  if args.object_store_id is not None:
+    record_object_store_id = record.object_store_id
+    if (
+        record_object_store_id == 0
+        and isinstance(record, chromium_record.ChromiumIndexedDBRecord)
+        and isinstance(record.key, chromium_record.ObjectStoreMetaDataKey)
+    ):
+      record_object_store_id = record.key.object_store_id
+
+    if record_object_store_id != args.object_store_id:
+      return False
 
   if args.filter_value is not None:
     if not record.is_value_filterable:
@@ -157,8 +354,12 @@ def HandleChromiumDB(args: argparse.Namespace) -> None:
   """
   if args.source.is_file():
     reader = sqlite.DatabaseReader(str(args.source))
-    if args.object_store_id is not None:
-      records: Any = reader.RecordsByObjectStoreId(
+    if args.list_databases:
+      records: Any = [ChromiumDatabaseInfo(name=args.source.name)]
+    elif args.list_object_stores:
+      records = reader.ObjectStores()
+    elif args.object_store_id is not None:
+      records = reader.RecordsByObjectStoreId(
           args.object_store_id,
           include_raw_data=args.include_raw_data,
           load_blobs=args.load_blobs,
@@ -188,7 +389,19 @@ def HandleFirefoxDB(args: argparse.Namespace) -> None:
     args: The arguments for processing the Firefox IndexedDB.
   """
   reader = firefox_record.FileReader(str(args.source))
-  if args.object_store_id is not None:
+  if getattr(args, "list_databases", False):
+    records: Any = [
+        FirefoxDatabaseInfo(
+            name=reader.database_name,
+            origin=reader.origin,
+            version=reader.metadata_version,
+            last_vacuum_time=reader.last_vacuum_time,
+            last_analyze_time=reader.last_analyze_time,
+        )
+    ]
+  elif getattr(args, "list_object_stores", False):
+    records = reader.ObjectStores()
+  elif args.object_store_id is not None:
     records = reader.RecordsByObjectStoreId(
         args.object_store_id,
         include_raw_data=args.include_raw_data,
@@ -212,7 +425,18 @@ def HandleSafariDB(args: argparse.Namespace) -> None:
     args: The arguments for processing the Safari IndexedDB.
   """
   reader = safari_record.FileReader(str(args.source))
-  if args.object_store_id is not None:
+  if getattr(args, "list_databases", False):
+    records: Any = [
+        SafariDatabaseInfo(
+            name=reader.database_name,
+            version=reader.database_version,
+            metadata_version=reader.metadata_version,
+            max_object_store_id=reader.max_object_store_id,
+        )
+    ]
+  elif getattr(args, "list_object_stores", False):
+    records = reader.ObjectStores()
+  elif args.object_store_id is not None:
     records = reader.RecordsByObjectStoreId(
         args.object_store_id,
         include_raw_data=args.include_raw_data,
@@ -356,9 +580,24 @@ def App() -> None:
       help="The type of IndexedDB to parse.",
   )
   parser_db.add_argument(
+      "--database_id",
+      type=int,
+      help="The database ID to filter by.",
+  )
+  parser_db.add_argument(
       "--object_store_id",
       type=int,
       help="The object store ID to filter by.",
+  )
+  parser_db.add_argument(
+      "--list_databases",
+      action="store_true",
+      help="List database names and IDs.",
+  )
+  parser_db.add_argument(
+      "--list_object_stores",
+      action="store_true",
+      help="List object store names and IDs.",
   )
   parser_db.add_argument(
       "--include_raw_data",
@@ -414,9 +653,24 @@ def App() -> None:
       help="Output format.  Default is json.",
   )
   parser_ldb.add_argument(
+      "--database_id",
+      type=int,
+      help="The database ID to filter by.",
+  )
+  parser_ldb.add_argument(
       "--object_store_id",
       type=int,
       help="The object store ID to filter by.",
+  )
+  parser_ldb.add_argument(
+      "--list_databases",
+      action="store_true",
+      help="List database names and IDs.",
+  )
+  parser_ldb.add_argument(
+      "--list_object_stores",
+      action="store_true",
+      help="List object store names and IDs.",
   )
   parser_ldb.add_argument(
       "--include_raw_data",
@@ -465,9 +719,24 @@ def App() -> None:
       help="Output format.  Default is json.",
   )
   parser_log.add_argument(
+      "--database_id",
+      type=int,
+      help="The database ID to filter by.",
+  )
+  parser_log.add_argument(
       "--object_store_id",
       type=int,
       help="The object store ID to filter by.",
+  )
+  parser_log.add_argument(
+      "--list_databases",
+      action="store_true",
+      help="List database names and IDs.",
+  )
+  parser_log.add_argument(
+      "--list_object_stores",
+      action="store_true",
+      help="List object store names and IDs.",
   )
   parser_log.add_argument(
       "--include_raw_data",

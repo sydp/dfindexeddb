@@ -35,7 +35,10 @@ class CLITest(unittest.TestCase):
     self.args = argparse.Namespace(
         source="source_file",
         format="chrome",
+        database_id=None,
         object_store_id=None,
+        list_databases=False,
+        list_object_stores=False,
         include_raw_data=False,
         filter_value=None,
         filter_key=None,
