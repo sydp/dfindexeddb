@@ -72,11 +72,11 @@ class FirefoxObjectStoreInfo:
     """The object store ID."""
     return self.id
 
-  def MatchesKey(self, term: str) -> bool:
+  def MatchesKey(self, unused_term: str) -> bool:
     """Returns True if the record key matches the filter term.
 
     Args:
-      term: the filter term.
+      unused_term: the filter term.
     """
     return False
 
